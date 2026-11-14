@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#10162f">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Luma Blocks – ett färgstarkt, lugnt blockpussel med NOVA-utmaning. Spela även offline.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Luma Blocks">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="./assets/favicon.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Luma Blocks</title>
+</head>
+<body>
+  <main id="app" class="app">
+    <header class="topbar">
+      <div class="brand" aria-label="Luma Blocks">
+        <span class="brand-main">LUMA<span class="brand-dot">.</span></span>
+        <span class="brand-sub">B L O C K S</span>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="icon-button" id="helpBtn" aria-label="Spelregler" title="Spelregler">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.65 2.65 0 0 1 5.1 1c0 1.6-2.7 2.3-2.7 3.7"/><path d="M12 17.4h.01" stroke-width="3" stroke-linecap="round"/></svg>
+        </button>
+        <button type="button" class="icon-button" id="soundBtn" aria-label="Stäng av ljud" aria-pressed="true" title="Ljud">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9v6h4l5 4V5L9 9H5Z"/><path class="sound-rays" d="M17 9a5 5 0 0 1 0 6M19 6a9 9 0 0 1 0 12"/></svg>
+        </button>
+        <button type="button" class="new-button" id="newBtn" title="Nytt spel">NYTT SPEL</button>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="Poängställning">
+      <div class="stat-card score-card">
+        <span class="stat-label">POÄNG</span>
+        <strong class="stat-value" id="score" aria-live="polite">0</strong>
+      </div>
+      <div class="stat-card best-card">
+        <span class="stat-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.6 6.2.9-4.5 4.4 1.1 6.1-5.5-2.9-5.5 2.9 1.1-6.1-4.5-4.4 6.2-.9L12 3Z"/></svg> REKORD</span>
+        <strong class="stat-value" id="best">0</strong>
+      </div>
+    </section>
+
+    <section class="game-area" aria-label="Spelplan med 8 gånger 8 rutor">
+      <div class="board-stack" id="boardStack">
+        <canvas id="board" aria-label="Spelplan. Välj ett block och placera det på rutnätet." role="img"></canvas>
+        <div id="boardHint" class="board-hint" hidden>Tryck på en ifylld ruta</div>
+        <div id="floatingScore" class="floating-score" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section class="tray-section" aria-label="Dina tre block">
+      <div class="tray-heading"><span id="guideText">DRA ETT BLOCK TILL RUTNÄTET</span><span id="comboLabel" class="combo-label" aria-live="polite"></span></div>
+      <div class="piece-tray" id="pieceTray">
+        <button type="button" class="piece-slot" data-index="0" aria-label="Block 1"><canvas class="piece-canvas" data-index="0"></canvas></button>
+        <button type="button" class="piece-slot" data-index="1" aria-label="Block 2"><canvas class="piece-canvas" data-index="1"></canvas></button>
+        <button type="button" class="piece-slot" data-index="2" aria-label="Block 3"><canvas class="piece-canvas" data-index="2"></canvas></button>
+      </div>
+    </section>
+
+    <footer class="game-footer">
+      <div class="nova-track">
+        <div class="nova-title">NOVA <span class="nova-progress" id="novaProgress">0 / 4</span></div>
+        <div class="nova-bars" id="novaBars" aria-label="Framsteg mot nästa NOVA">
+          <i></i><i></i><i></i><i></i>
+        </div>
+      </div>
+      <button type="button" class="nova-button" id="novaBtn" aria-label="Använd NOVA" aria-pressed="false" disabled><span class="nova-star" aria-hidden="true">✦</span> ANVÄND NOVA <span class="nova-count" id="novaCount">0</span></button>
+    </footer>
+  </main>
+
+  <canvas id="ghost" class="drag-ghost" aria-hidden="true"></canvas>
+  <div id="modal" class="modal-layer" hidden>
+    <div class="modal-backdrop" data-action="close"></div>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-kicker" id="modalKicker">LUMA BLOCKS</div>
+      <h1 id="modalTitle">Nytt spel?</h1>
+      <div id="modalBody" class="modal-body"></div>
+      <div class="modal-actions" id="modalActions"></div>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
