@@ -33,7 +33,7 @@ button:focus-visible { outline:2px solid var(--aqua); outline-offset:3px; }
   background-image:radial-gradient(circle,rgba(255,255,255,.55) .65px,transparent .7px);
   background-size:97px 117px; background-position: 14px 8px;
 }
-.topbar,.stats,.game-area,.tray-section,.game-footer { position:relative; z-index:1; flex-shrink:0; }
+.topbar,.stats,.level-section,.game-area,.tray-section,.game-footer { position:relative; z-index:1; flex-shrink:0; }
 .topbar { display:flex; align-items:center; justify-content:space-between; min-height:50px; gap:6px; }
 .brand { display:flex; flex-direction:column; justify-content:center; padding-left:2px; line-height:1; white-space:nowrap; }
 .brand-main { font-size:clamp(23px,6.8vw,31px); font-weight:900; letter-spacing:-1.6px; line-height:.93; }
@@ -65,6 +65,12 @@ button:focus-visible { outline:2px solid var(--aqua); outline-offset:3px; }
 .best-card .stat-value { color:var(--aqua); }
 .stat-value.pop {animation:scorePop .32s cubic-bezier(.25,1.8,.5,1);}
 @keyframes scorePop {0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+ .level-section { display:flex; flex-direction:column; gap:6px; padding:0 5px; }
+.level-heading { display:flex; align-items:baseline; justify-content:space-between; font-size:11px; font-weight:850; letter-spacing:1.25px; color:#a5b9dc; }
+.level-heading strong { font-size:16px; color:var(--aqua); }
+.level-heading span:last-child { color:#8b9cbb; font-size:10px; }
+.level-track { height:6px; border-radius:20px; background:rgba(64,82,128,.6); overflow:hidden; }
+.level-fill { height:100%; width:0%; border-radius:20px; background:linear-gradient(90deg,#6bcce9,#a4f7f5); box-shadow:0 0 9px rgba(86,217,238,.3); transition:width .25s ease; }
 .game-area { flex:1 1 auto; display:flex; align-items:center; justify-content:center; min-height:0; }
 .board-stack {
   position:relative; aspect-ratio:1; flex:none;
@@ -78,6 +84,9 @@ button:focus-visible { outline:2px solid var(--aqua); outline-offset:3px; }
 .floating-score { position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:24px;font-weight:950;color:var(--aqua);text-shadow:0 2px 14px rgba(80,239,246,.45);pointer-events:none;opacity:0;white-space:nowrap; }
 .floating-score.animate { animation:floatScore .83s ease-out forwards; }
 @keyframes floatScore { 0%{opacity:0;transform:translate(-50%,6px) scale(.75)}20%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translate(-50%,-62px) scale(1.12)} }
+.level-banner { position:absolute; z-index:5; top:50%; left:50%; transform:translate(-50%,-50%) scale(.7); opacity:0; pointer-events:none; white-space:nowrap; font-size:clamp(24px,7vw,39px); font-weight:950; color:#ddfcff; text-shadow:0 2px 16px rgba(74,233,244,.7),0 6px 28px rgba(0,0,0,.8); }
+.level-banner.show { animation:levelAppear 1.5s ease-out both; }
+@keyframes levelAppear {0%{opacity:0;transform:translate(-50%,-50%) scale(.7)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.07)}60%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.2)}}
 .tray-section { display:flex; flex-direction:column; gap:9px; }
 .tray-heading { display:flex; align-items:center; justify-content:space-between; font-size:10px; color:#899bbe; font-weight:800; letter-spacing:1.1px; min-height:13px; padding:0 3px; }
 .combo-label { color:#ffd16f; }
@@ -130,7 +139,7 @@ button:focus-visible { outline:2px solid var(--aqua); outline-offset:3px; }
 @media(max-height:690px){
  .app {gap:7px;padding-top:max(6px,env(safe-area-inset-top));padding-bottom:max(8px,env(safe-area-inset-bottom));}
  .topbar{min-height:42px}.icon-button,.new-button{height:35px}.icon-button{width:35px;flex-basis:35px;}
- .stat-card{height:59px}.stat-value{font-size:24px}.piece-slot{height:82px}.tray-section{gap:5px}.game-footer{min-height:40px}.nova-button{height:38px}
+ .level-section{gap:4px}.level-track{height:5px}.stat-card{height:59px}.stat-value{font-size:24px}.piece-slot{height:82px}.tray-section{gap:5px}.game-footer{min-height:40px}.nova-button{height:38px}
 }
 @media(min-width:600px){body{background:#090e20}.app{border-left:1px solid #293755;border-right:1px solid #293755}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}

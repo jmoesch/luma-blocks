@@ -1,4 +1,4 @@
-import { GameEngine, SHAPES, dims, SIDE, loadState, saveState, SETTINGS_KEY } from './engine.js';
+import { GameEngine, SHAPES, dims, SIDE, loadState, saveState, linesNeeded, SETTINGS_KEY } from './engine.js?v=1.2.1';
 
 const $=id=>document.getElementById(id);
 const app=$('app'), board=$('board'), boardStack=$('boardStack'), boardArea=document.querySelector('.game-area');
@@ -37,7 +37,7 @@ function drawBlock(ctx,x,y,s,hue,alpha=1) {
   const color=colors[hue] || colors[0];
   const g=Math.max(1.4,s*.055), w=s-g*2, h=s-g*2;
   if(w<=0||h<=0)return;
-  ctx.save();ctx.globalAlpha=alpha;
+  ctx.save();ctx.globalAlpha*=alpha;
   const r=Math.max(3,s*.16);
   // Bottom bevel makes the tiles feel dimensional without expensive images.
   rounded(ctx,x+g,y+g+Math.max(1.2,s*.045),w,h-Math.max(1.2,s*.045),r);
@@ -85,16 +85,22 @@ function drawBoard() {
   }
   if(animation) {
     const t=Math.min(1,(performance.now()-animation.start)/animation.duration);
-    for(let i=0;i<animation.cleared.length;i++){
-      const {row,col}=animation.cleared[i];
-      const alpha=(1-t)*.88;
-      const pulse=cell*(.13*t);
-      ctx.save();ctx.globalAlpha=alpha;
-      ctx.shadowColor=colors[animation.hues[i]||0].light;ctx.shadowBlur=cell*.4*(1-t);
-      drawBlock(ctx,col*cell-pulse,row*cell-pulse,cell+2*pulse,animation.hues[i]||0,.9);
-      ctx.restore();
+    // Important: never paint the last frame of a completed animation.
+    // v1.1 painted it and stopped its render loop, leaving ghost blocks visible forever.
+    if(t>=1){
+      animation=null;
+    } else {
+      for(let i=0;i<animation.cleared.length;i++){
+        const {row,col}=animation.cleared[i];
+        const pulse=cell*(.12*t);
+        ctx.save();
+        ctx.globalAlpha=(1-t)*.9;
+        ctx.shadowColor=colors[animation.hues[i]??0].light;
+        ctx.shadowBlur=cell*.35*(1-t);
+        drawBlock(ctx,col*cell-pulse,row*cell-pulse,cell+2*pulse,animation.hues[i]??0,.9);
+        ctx.restore();
+      }
     }
-    if(t>=1){ animation=null; }
   }
   ctx.restore();
 }
@@ -129,6 +135,9 @@ function updateHUD({pop=false}={}) {
   novaBtn.setAttribute('aria-pressed',String(novaMode));
   $('boardHint').hidden=!novaMode;
   $('comboLabel').textContent=s.combo>1?`KOMBO ×${s.combo}`:'';
+  $('levelNumber').textContent=String(s.level);
+  $('levelCount').textContent=`${s.levelLines} / ${linesNeeded(s.level)} LINJER`;
+  $('levelFill').style.width=`${100*s.levelLines/linesNeeded(s.level)}%`;
   $('soundBtn').classList.toggle('is-muted',!soundOn);
   $('soundBtn').setAttribute('aria-pressed',String(soundOn));
   $('soundBtn').setAttribute('aria-label',soundOn?'Stäng av ljud':'Slå på ljud');
@@ -180,7 +189,22 @@ function afterMove(outcome) {
     scoreFloat(outcome.combo>1?`KOMBO ×${outcome.combo} · +${outcome.gained}`:`+${outcome.gained}`);
     if(engine.state.novaTokens>0 && engine.state.novaEnergy===0)showToast('✦ NOVA uppladdad!');
   }else play('place');
-  if(outcome.gameOver)setTimeout(()=>{if(engine.state.isGameOver)openModal('gameover');},650);
+  if(outcome.levelUp) setTimeout(()=>showLevelBanner(outcome.toLevel),510);
+  // No legal placements? Warn before ending if the player can still spend a NOVA.
+  if(outcome.gameOver || outcome.needsNova) setTimeout(checkBlockedBoard, outcome.clearedLines?560:160);
+}
+function showLevelBanner(level) {
+  const el=$('levelBanner');
+  el.textContent=`NIVÅ ${level}`;
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),1450);
+}
+function checkBlockedBoard() {
+  if(modalType || engine.hasAnyMove())return;
+  if(engine.state.novaTokens>0 && !engine.state.isGameOver)openModal('stuck');
+  else if(engine.state.isGameOver)openModal('gameover');
 }
 function selectPiece(index) {
   if(novaMode){novaMode=false;}
@@ -275,7 +299,7 @@ board.addEventListener('pointerdown',e=>{
     if(engine.useNova(target.row,target.col)){
       novaMode=false;saveState(engine.state);play('clear');scoreFloat('✦ NOVA');
       updateHUD();drawBoard();drawRack();
-      if(engine.state.isGameOver)setTimeout(()=>{if(engine.state.isGameOver)openModal('gameover');},550);
+      setTimeout(checkBlockedBoard,250);
     }else showToast('Välj en fylld ruta');
     return;
   }
@@ -317,7 +341,7 @@ function modalButton(label,kind,fn) {
   return button;
 }
 function openModal(type) {
-  if(modalType==='gameover'&&type!=='gameover')return;
+  if((modalType==='gameover'||modalType==='stuck')&&type!=='gameover')return;
   focusBeforeModal=document.activeElement;
   modalType=type;
   modalActions.replaceChildren();
@@ -326,31 +350,42 @@ function openModal(type) {
   let focusTarget;
   if(type==='help') {
     kicker.textContent='SÅ SPELAR DU';title.textContent='Enkelt att börja';
-    modalBody.innerHTML=`<div class="instructions"><p><strong>1.</strong> Dra block från de tre rutorna till spelplanen. Du kan även trycka på ett block och sedan på rutnätet.</p><p><strong>2.</strong> Fyll hela rader eller kolumner så försvinner de och du får poäng. Flera rensningar i följd ger kombobonus.</p><p><strong>3.</strong> Fyra rensade linjer ger en <strong>NOVA</strong>. Med den kan du ta bort en blockerande ruta. Du kan spara högst tre.</p><p>Spelet sparas automatiskt. Ingen tidspress.</p><p><strong>På iPhone:</strong> öppna sidan i Safari, tryck på Dela och välj <em>Lägg till på hemskärmen</em> för att installera spelet.</p></div>`;
+    modalBody.innerHTML=`<div class="instructions"><p><strong>1.</strong> Dra block från de tre rutorna till spelplanen. Du kan även trycka på ett block och sedan på rutnätet.</p><p><strong>2.</strong> Fyll en hel rad eller kolumn för att rensa den och få poäng. Slutför nivåns mål för att gå vidare till nästa nivå med en ny spelplan.</p><p><strong>3.</strong> Fyra rensade linjer ger en <strong>NOVA</strong>. Med den kan du ta bort en blockerande ruta. Du kan spara högst tre.</p><p>Om inga block får plats får du en varning. Har du NOVA kan du välja att använda den för att frigöra en ruta. Spelet sparas automatiskt.</p><p><strong>På iPhone:</strong> öppna sidan i Safari, tryck på Dela och välj <em>Lägg till på hemskärmen</em> för att installera spelet.</p></div>`;
     focusTarget=modalButton('FORTSÄTT SPELA','primary',closeModal);
+  }else if(type==='stuck') {
+    kicker.textContent='INGA MÖJLIGA DRAG';title.textContent='Använd NOVA?';
+    const tokens=engine.state.novaTokens;
+    modalBody.textContent=`Inget av dina block får plats. Du har ${tokens} NOVA kvar. Ta bort en fylld ruta för att försöka skapa plats och fortsätta på nivå ${engine.state.level}.`;
+    focusTarget=modalButton(`ANVÄND NOVA (${tokens})`,'primary',()=>{
+      modal.hidden=true;modalType=null;
+      novaMode=true;selected=null;
+      drawBoard();drawRack();updateHUD();
+      showToast('Välj en ifylld ruta att ta bort');
+    });
+    modalButton('NYTT SPEL','secondary',restart);
   }else if(type==='new'){
     kicker.textContent='NY OMGÅNG';title.textContent='Börja om?';
     modalBody.textContent='Dina nuvarande poäng och din spelplan återställs. Ditt rekord behålls.';
     focusTarget=modalButton('JA, NYTT SPEL','primary',restart);
     modalButton('AVBRYT','secondary',closeModal);
   }else{
-    kicker.textContent='OMGÅNGEN ÄR SLUT';title.textContent='Bra kämpat!';
-    modalBody.innerHTML=`<div class="modal-points">${format.format(engine.state.score)}</div><div class="modal-record">REKORD · ${format.format(engine.state.bestScore)}</div><p>Varje omgång är en ny utmaning.</p>`;
+    kicker.textContent='INGA FLER DRAG';title.textContent=`Du nådde nivå ${engine.state.level}`;
+    modalBody.innerHTML=`<div class="modal-points">${format.format(engine.state.score)}</div><div class="modal-record">REKORD · ${format.format(engine.state.bestScore)}</div><p>Spelplanen är låst. Starta om och försök nå nästa nivå.</p>`;
     focusTarget=modalButton('SPELA IGEN','primary',restart);
   }
   modal.hidden=false;
   focusTarget?.focus();
 }
 function closeModal() {
-  if(modalType==='gameover')return;
+  if(modalType==='gameover'||modalType==='stuck')return;
   modal.hidden=true;modalType=null;
   if(focusBeforeModal?.focus)focusBeforeModal.focus();
 }
 modal.querySelector('.modal-backdrop').addEventListener('click',()=>{
-  if(modalType!=='gameover')closeModal();
+  if(modalType!=='gameover'&&modalType!=='stuck')closeModal();
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape' && modalType!=='gameover')closeModal();
+  if(e.key==='Escape' && modalType!=='gameover'&&modalType!=='stuck')closeModal();
 });
 window.addEventListener('resize',scheduleLayout);
 if(window.visualViewport)window.visualViewport.addEventListener('resize',scheduleLayout);
@@ -358,7 +393,7 @@ window.addEventListener('pagehide',()=>saveState(engine.state));
 // Prevent accidental pan/pinch or browser overscroll on the game surface.
 for(const el of [board,...racks])el.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 updateHUD();
-requestAnimationFrame(()=>{layout();if(engine.state.isGameOver)openModal('gameover');});
+requestAnimationFrame(()=>{layout();checkBlockedBoard();});
 if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost' || location.hostname==='127.0.0.1')) {
   window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(err=>console.warn('Offline-cache kunde inte aktiveras:',err)));
 }
