@@ -1,5 +1,5 @@
 /**
- * Luma Blocks v1.2.1 — deterministic puzzle and level progression.
+ * Luma Blocks v1.2.3 — deterministic puzzle and non-destructive level progression.
  * No dependencies on the DOM; testable using Node.js.
  */
 export const SIDE = 8;
@@ -39,7 +39,9 @@ export function dims(piece) {
   const cells=SHAPES[piece.shape] || [];
   return {rows:1+Math.max(0,...cells.map(t=>t.row)),cols:1+Math.max(0,...cells.map(t=>t.col))};
 }
-export const linesNeeded=level=>Math.min(5,Math.max(1,level));
+// A level requires several cleared lines, not a single line.
+// Level-ups never erase other occupied cells.
+export const linesNeeded=level=>Math.min(15, 3 + Math.max(1,level)*2);
 const blankBoard=()=>Array.from({length:SIDE},()=>Array(SIDE).fill(null));
 
 export function createState(bestScore=0) {
@@ -82,10 +84,10 @@ export class GameEngine {
     if(restored) {
       this.state=structuredClone(restored);
       this.repairLegacyLines();
-      // A saved v1.1 game-over must be recoverable when NOVA is still available.
-      // A deliberately ended game, however, cannot be resumed by refreshing.
-      if(this.hasAnyMove()||this.state.novaTokens>0)this.state.isGameOver=false;
-      else this.state.isGameOver=true;
+      // In v1.2.3 a blocked board is recoverable: NOVA or the next level.
+      // Previous saved game-over flags must not lock the player out.
+      this.state.isGameOver=false;
+      if(this.state.rack.every(piece=>piece===null))this.refillRack();
     } else {this.state=createState();this.refillRack();}
   }
   restart() {this.state=createState(this.state.bestScore);this.refillRack();}
@@ -121,8 +123,11 @@ export class GameEngine {
   // when no offered piece fits. The UI reads needsNova after every move.
   checkStuck() {
     const blocked=!this.hasAnyMove();
-    this.state.isGameOver=blocked&&this.state.novaTokens===0;
-    return {gameOver:this.state.isGameOver,needsNova:blocked&&this.state.novaTokens>0};
+    // Do not end the whole game on a blocked board. Offer NOVA first; if
+    // unavailable, the player can continue with a new level and keep points.
+    this.state.isGameOver=false;
+    return {gameOver:false,needsNova:blocked&&this.state.novaTokens>0,
+      readyForNextLevel:blocked&&this.state.novaTokens===0};
   }
   repairLegacyLines() {
     const s=this.state,{cleared,lines}=findFilledLines(s.board);
@@ -137,9 +142,8 @@ export class GameEngine {
     while(s.levelLines>=linesNeeded(s.level)){
       s.levelLines-=linesNeeded(s.level);
       s.level++;
-      s.combo=0;
-      s.board=blankBoard();
-      this.refillRack();
+      // Never wipe the remaining board just because a line was repaired.
+      // All other blocks remain exactly where they were.
     }
   }
   place(index,row,col) {
@@ -160,6 +164,7 @@ export class GameEngine {
     s.moves++;
     s.totalLines+=lines;
     s.levelLines+=lines;
+    const previousTokens=s.novaTokens;
     s.novaEnergy+=lines;
     while(s.novaEnergy>=4){s.novaEnergy-=4;s.novaTokens=Math.min(3,s.novaTokens+1);}
     const fromLevel=s.level;
@@ -173,17 +178,31 @@ export class GameEngine {
     s.score+=gained;
     s.bestScore=Math.max(s.bestScore,s.score);
     let replenished=false;
-    if(levelUp){
-      s.board=blankBoard();
-      s.combo=0;
-      replenished=this.refillRack();
-    } else if(s.rack.every(p=>p===null)){
-      replenished=this.refillRack();
-    }
-    const {gameOver,needsNova}=this.checkStuck();
+    // A milestone changes level and awards points, but it does not wipe
+    // the rest of the board or replace unused offered pieces.
+    if(s.rack.every(p=>p===null))replenished=this.refillRack();
+    const {gameOver,needsNova,readyForNextLevel}=this.checkStuck();
     return {placed,cleared,clearedHues,clearedLines:lines,gained,
-      combo:levelUp?0:s.combo,levelUp,fromLevel,toLevel:s.level,
-      gameOver,needsNova,replenished};
+      novaEarned:s.novaTokens-previousTokens,combo:s.combo,levelUp,fromLevel,toLevel:s.level,
+      gameOver,needsNova,readyForNextLevel,replenished};
+  }
+  /**
+   * Player has run out of legal placements. NOVA remains the preferred rescue.
+   * Moving on explicitly starts a fresh board while keeping total points,
+   * record and unused NOVA. This is the ONLY routine that clears a board
+   * for level progression.
+   */
+  advanceBlockedLevel() {
+    const s=this.state;
+    if(this.hasAnyMove())return false;
+    const previousLevel=s.level;
+    s.level++;
+    s.levelLines=0;
+    s.board=blankBoard();
+    s.combo=0;
+    s.isGameOver=false;
+    this.refillRack();
+    return {fromLevel:previousLevel,toLevel:s.level};
   }
   useNova(row,col) {
     const s=this.state;
@@ -197,9 +216,9 @@ export class GameEngine {
     return true;
   }
 }
-export function loadState(storage=globalThis.localStorage) {
-  try{const raw=storage.getItem(SAVE_KEY);return raw?migrateSaved(JSON.parse(raw)):null;}catch{return null;}
+export function loadState(storage) {
+  try{const raw=(storage??globalThis.localStorage).getItem(SAVE_KEY);return raw?migrateSaved(JSON.parse(raw)):null;}catch{return null;}
 }
-export function saveState(state,storage=globalThis.localStorage) {
-  try{storage.setItem(SAVE_KEY,JSON.stringify(state));return true;}catch{return false;}
+export function saveState(state,storage) {
+  try{(storage??globalThis.localStorage).setItem(SAVE_KEY,JSON.stringify(state));return true;}catch{return false;}
 }

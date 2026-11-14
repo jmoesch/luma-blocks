@@ -1,4 +1,4 @@
-import { GameEngine, SHAPES, dims, SIDE, loadState, saveState, linesNeeded, SETTINGS_KEY } from './engine.js?v=1.2.1';
+import { GameEngine, SHAPES, dims, SIDE, loadState, saveState, linesNeeded, SETTINGS_KEY } from './engine.js?v=1.2.3';
 
 const $=id=>document.getElementById(id);
 const app=$('app'), board=$('board'), boardStack=$('boardStack'), boardArea=document.querySelector('.game-area');
@@ -187,11 +187,11 @@ function afterMove(outcome) {
   if(outcome.clearedLines){
     play('clear');startClearAnimation(outcome);
     scoreFloat(outcome.combo>1?`KOMBO ×${outcome.combo} · +${outcome.gained}`:`+${outcome.gained}`);
-    if(engine.state.novaTokens>0 && engine.state.novaEnergy===0)showToast('✦ NOVA uppladdad!');
+    if(outcome.novaEarned>0)showToast('✦ NOVA uppladdad!');
   }else play('place');
-  if(outcome.levelUp) setTimeout(()=>showLevelBanner(outcome.toLevel),510);
-  // No legal placements? Warn before ending if the player can still spend a NOVA.
-  if(outcome.gameOver || outcome.needsNova) setTimeout(checkBlockedBoard, outcome.clearedLines?560:160);
+  if(outcome.levelUp)showLevelBanner(outcome.toLevel);
+  // On a blocked board show NOVA before offering a fresh level.
+  if(outcome.readyForNextLevel || outcome.needsNova) setTimeout(checkBlockedBoard, outcome.clearedLines?560:160);
 }
 function showLevelBanner(level) {
   const el=$('levelBanner');
@@ -202,9 +202,9 @@ function showLevelBanner(level) {
   setTimeout(()=>el.classList.remove('show'),1450);
 }
 function checkBlockedBoard() {
-  if(modalType || engine.hasAnyMove())return;
-  if(engine.state.novaTokens>0 && !engine.state.isGameOver)openModal('stuck');
-  else if(engine.state.isGameOver)openModal('gameover');
+  if(modalType || novaMode || engine.hasAnyMove())return;
+  if(engine.state.novaTokens>0)openModal('stuck');
+  else openModal('nextlevel');
 }
 function selectPiece(index) {
   if(novaMode){novaMode=false;}
@@ -284,10 +284,11 @@ for(const slot of racks) {
     else if(origin)afterMove(engine.place(session.index,origin.row,origin.col));
     else showToast('Släpp blocket på lediga rutor');
   });
+  slot.addEventListener('lostpointercapture',e=>{if(drag?.pointerId===e.pointerId)stopDrag();});
   slot.addEventListener('pointercancel',e=>{if(drag?.pointerId===e.pointerId)stopDrag();});
   slot.addEventListener('click',e=>{
     // Keyboard/assistive button activation (pointer clicks already handled).
-    if(e.detail===0&&!modalType&&!engine.state.isGameOver)selectPiece(Number(slot.dataset.index));
+    if(e.detail===0&&!modalType&&!novaMode&&!engine.state.isGameOver)selectPiece(Number(slot.dataset.index));
   });
 }
 board.addEventListener('pointerdown',e=>{
@@ -322,16 +323,28 @@ $('soundBtn').addEventListener('click',()=>{
 });
 novaBtn.addEventListener('click',()=>{
   if(engine.state.novaTokens<1||engine.state.isGameOver||modalType)return;
+  if(drag)stopDrag();
   novaMode=!novaMode;
   selected=null;
   drawBoard();drawRack();updateHUD();
+  checkBlockedBoard();
 });
 function restart() {
-  modal.hidden=true;modalType=null;
+  modal.hidden=true;modalType=null;app.inert=false;
+  $('levelBanner').classList.remove('show');
   engine.restart();selected=null;drag=null;novaMode=false;animation=null;
   saveState(engine.state);
   updateHUD();drawBoard();drawRack();
   scoreFloat('NYTT SPEL');
+}
+function goNextLevel() {
+  const outcome=engine.advanceBlockedLevel();
+  if(!outcome)return;
+  modal.hidden=true;modalType=null;app.inert=false;
+  selected=null;drag=null;novaMode=false;animation=null;
+  saveState(engine.state);
+  updateHUD();drawBoard();drawRack();
+  showLevelBanner(outcome.toLevel);
 }
 function modalButton(label,kind,fn) {
   const button=document.createElement('button');button.textContent=label;
@@ -341,8 +354,10 @@ function modalButton(label,kind,fn) {
   return button;
 }
 function openModal(type) {
-  if((modalType==='gameover'||modalType==='stuck')&&type!=='gameover')return;
+  if((modalType==='nextlevel'||modalType==='stuck')&&type!=='nextlevel')return;
+  if(drag)stopDrag();
   focusBeforeModal=document.activeElement;
+  app.inert=true;
   modalType=type;
   modalActions.replaceChildren();
   const title=$('modalTitle');
@@ -350,46 +365,48 @@ function openModal(type) {
   let focusTarget;
   if(type==='help') {
     kicker.textContent='SÅ SPELAR DU';title.textContent='Enkelt att börja';
-    modalBody.innerHTML=`<div class="instructions"><p><strong>1.</strong> Dra block från de tre rutorna till spelplanen. Du kan även trycka på ett block och sedan på rutnätet.</p><p><strong>2.</strong> Fyll en hel rad eller kolumn för att rensa den och få poäng. Slutför nivåns mål för att gå vidare till nästa nivå med en ny spelplan.</p><p><strong>3.</strong> Fyra rensade linjer ger en <strong>NOVA</strong>. Med den kan du ta bort en blockerande ruta. Du kan spara högst tre.</p><p>Om inga block får plats får du en varning. Har du NOVA kan du välja att använda den för att frigöra en ruta. Spelet sparas automatiskt.</p><p><strong>På iPhone:</strong> öppna sidan i Safari, tryck på Dela och välj <em>Lägg till på hemskärmen</em> för att installera spelet.</p></div>`;
+    modalBody.innerHTML=`<div class="instructions"><p><strong>1.</strong> Dra block från de tre rutorna till spelplanen. Du kan även trycka på ett block och sedan på rutnätet.</p><p><strong>2.</strong> Fyll en hel rad eller kolumn för att rensa den och få poäng. Efter flera rensade linjer stiger du i nivå, men alla andra block ligger kvar på spelplanen.</p><p><strong>3.</strong> Fyra rensade linjer ger en <strong>NOVA</strong>. Med den kan du ta bort en blockerande ruta. Du kan spara högst tre.</p><p>Om inga block får plats får du först möjlighet att använda NOVA. Du kan annars gå vidare till nästa nivå på en ny spelplan, utan att förlora dina poäng. Spelet sparas automatiskt.</p><p><small>Version 1.2.3</small></p><p><strong>På iPhone:</strong> öppna sidan i Safari, tryck på Dela och välj <em>Lägg till på hemskärmen</em> för att installera spelet.</p></div>`;
     focusTarget=modalButton('FORTSÄTT SPELA','primary',closeModal);
   }else if(type==='stuck') {
     kicker.textContent='INGA MÖJLIGA DRAG';title.textContent='Använd NOVA?';
     const tokens=engine.state.novaTokens;
     modalBody.textContent=`Inget av dina block får plats. Du har ${tokens} NOVA kvar. Ta bort en fylld ruta för att försöka skapa plats och fortsätta på nivå ${engine.state.level}.`;
     focusTarget=modalButton(`ANVÄND NOVA (${tokens})`,'primary',()=>{
-      modal.hidden=true;modalType=null;
+      modal.hidden=true;modalType=null;app.inert=false;
       novaMode=true;selected=null;
       drawBoard();drawRack();updateHUD();
       showToast('Välj en ifylld ruta att ta bort');
     });
-    modalButton('NYTT SPEL','secondary',restart);
+    modalButton('NÄSTA NIVÅ (NY SPELPLAN)','secondary',goNextLevel);
   }else if(type==='new'){
     kicker.textContent='NY OMGÅNG';title.textContent='Börja om?';
     modalBody.textContent='Dina nuvarande poäng och din spelplan återställs. Ditt rekord behålls.';
     focusTarget=modalButton('JA, NYTT SPEL','primary',restart);
     modalButton('AVBRYT','secondary',closeModal);
-  }else{
-    kicker.textContent='INGA FLER DRAG';title.textContent=`Du nådde nivå ${engine.state.level}`;
-    modalBody.innerHTML=`<div class="modal-points">${format.format(engine.state.score)}</div><div class="modal-record">REKORD · ${format.format(engine.state.bestScore)}</div><p>Spelplanen är låst. Starta om och försök nå nästa nivå.</p>`;
-    focusTarget=modalButton('SPELA IGEN','primary',restart);
+  }else if(type==='nextlevel'){
+    kicker.textContent='INGA MÖJLIGA DRAG';title.textContent='Fortsätt spela!';
+    modalBody.innerHTML=`<div class="modal-points">${format.format(engine.state.score)}</div><p>Inga block får plats och du har ingen NOVA kvar. Du kan fortsätta på nivå ${engine.state.level+1} med en ny spelplan. Dina poäng och ditt rekord behålls.</p>`;
+    focusTarget=modalButton(`FORTSÄTT TILL NIVÅ ${engine.state.level+1}`,'primary',goNextLevel);
   }
   modal.hidden=false;
   focusTarget?.focus();
 }
 function closeModal() {
-  if(modalType==='gameover'||modalType==='stuck')return;
-  modal.hidden=true;modalType=null;
+  if(modalType==='nextlevel'||modalType==='stuck')return;
+  modal.hidden=true;modalType=null;app.inert=false;
   if(focusBeforeModal?.focus)focusBeforeModal.focus();
+  checkBlockedBoard();
 }
 modal.querySelector('.modal-backdrop').addEventListener('click',()=>{
-  if(modalType!=='gameover'&&modalType!=='stuck')closeModal();
+  if(modalType!=='nextlevel'&&modalType!=='stuck')closeModal();
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape' && modalType!=='gameover'&&modalType!=='stuck')closeModal();
+  if(e.key==='Escape' && modalType && modalType!=='nextlevel'&&modalType!=='stuck')closeModal();
 });
 window.addEventListener('resize',scheduleLayout);
 if(window.visualViewport)window.visualViewport.addEventListener('resize',scheduleLayout);
-window.addEventListener('pagehide',()=>saveState(engine.state));
+// Moves save immediately. Closing an older tab must not overwrite a newer game.
+saveState(engine.state);
 // Prevent accidental pan/pinch or browser overscroll on the game surface.
 for(const el of [board,...racks])el.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
 updateHUD();

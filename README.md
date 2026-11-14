@@ -1,38 +1,33 @@
-# Luma Blocks PWA — version 1.2.1
+# Luma Blocks PWA — v1.2.3
 
-Mobilanpassat blockpussel med nivåer, NOVA och offlinefunktion. Källkoden är HTML/CSS/JavaScript och kräver ingen byggprocess eller Mac.
+Ett komplett fristående iPhone-anpassat HTML5/JavaScript-spel med offlinefunktion. Inga utvecklaravgifter, ingen kompilering och inga externa bibliotek.
 
-## Uppdatera ditt befintliga GitHub Pages-spel
+## Rättad regel för rensning (viktigt)
 
-1. Packa upp `LumaBlocks-PWA-v1.2.1.zip` på datorn.
-2. Öppna GitHub: `https://github.com/jmoesch/luma-blocks`.
-3. Öppna **Add file → Upload files** (eller välj uppladdning i filvyn).
-4. Dra **alla filer och mappar inuti** den uppackade `LumaBlocks-PWA-v1.2.1` till uppladdningsytan. `index.html`, `game.js`, `engine.js`, `styles.css`, `sw.js` och `assets` ska ligga på repositoryts högsta nivå.
-5. GitHub ska ersätta filer med samma namn. Låt mappen `assets` följa med. Klicka sedan **Commit changes**.
-6. Öppna `https://jmoesch.github.io/luma-blocks/` och ladda om. Vid uppdatering av tidigare installerad webbapp kan det behövas ytterligare en omladdning när offline-cachen har bytts ut. Kontrollera att **NIVÅ 1** syns ovanför spelplanen.
+- När en **enda rad eller kolumn blir full** tas bara dess åtta rutor bort. Andra rutor **ligger kvar**, poängen räknas och nivån höjs om nivåmålet nås.
+- En nivå kräver nu **flera** rensade linjer: nivå 1 kräver 5; nivå 2 kräver 7; nivå 3 kräver 9; sedan ökar målet upp till högst 15 linjer per nivå.
+- Vid ett uppnått nivåmål kommer en liten nivånotis och bonuspoäng. **Övriga block och de kvarvarande valbara blocken behålls**, även när nivån höjs.
+- Om inget av de kvarvarande blocken går att placera visas först ett NOVA-alternativ (om NOVA finns). Du kan använda NOVA för att försöka frigöra en ruta, eller välja **Nästa nivå (ny spelplan)**.
+- Saknas NOVA vid ett helt låst läge erbjuds **Fortsätt till nivå X**, med ny tom spelplan och nya block. Samlad poäng, rekord och oanvänd NOVA behålls.
+- **Nytt spel** är separat från **nästa nivå**: det nollställer poängen men sparar rekordet.
 
-**OBS:** Ta inte bort repositoryt eller rensa webbplatsdata i Safari för att uppdatera. Lokal sparning använder fortfarande nyckeln `luma.pwa.game.v1`, så poäng, rekord och pågående bräde behålls så långt det tidigare sparade tillståndet är giltigt. Pågående version 1.1-spel får nivå 1 som startnivå men behåller sina poäng.
+## Uppdatera GitHub Pages
 
-## Regler
+1. Packa upp `LumaBlocks-PWA-v1.2.3.zip`.
+2. Gå till `https://github.com/jmoesch/luma-blocks`.
+3. Välj **Add file → Upload files** och dra **alla filer och undermappar inuti mappen** till sidan, så att `index.html`, `engine.js`, `game.js`, `styles.css` och `sw.js` ligger direkt i repositoryts rot.
+4. Bekräfta ändringarna med **Commit changes**.
+5. GitHub Pages publicerar samma länk som tidigare: `https://jmoesch.github.io/luma-blocks/`.
+6. Ladda om sidan. Om en installerad iPhone-PWA fortfarande visar gammal kod, öppna webbadressen i Safari när du är online, ladda om sidan och starta sedan om PWA:n. Hjälprutan visar installerad version.
 
-- Välj ett av tre block, dra det till rutnätet eller tryck först på blocket och sedan på rutan.
-- Fyll en hel rad eller kolumn. Den rensas och ger poäng. Du får bonus för flera linjer och kombinationer.
-- Varje nivå har ett mål i rensade rader/kolumner. Nivå 1: 1 linje; nivå 2: 2; nivå 3: 3; nivå 4: 4; nivå 5 och senare: 5. Vid uppnått mål börjar en ny nivå med tom spelplan. Poäng och NOVA behålls.
-- Fyra rensade linjer ger en **NOVA**. Högst tre kan sparas. En NOVA tar bort en valfri upptagen ruta.
-- **Om inget av de erbjudna blocken får plats:** Spelet kontrollerar om NOVA finns. Om ja visas **Använd NOVA?**, där du får välja en ruta att ta bort. Om det fortfarande inte finns något giltigt drag visas varningen på nytt när en NOVA finns kvar. Om NOVA saknas är omgången slut. Att använda en NOVA garanterar inte att de kvarvarande blocken får plats.
-- Tre nya block delas ut när alla i gruppen har placerats. Inga automatiska omblandningar görs vid blockerat läge.
-- Inga annonser, inga köpfunktioner, inget konto och ingen tredjepartsanalys.
-
-## iPhone
-
-Öppna webbplatsen i Safari. Använd **Dela → Lägg till på hemskärmen** för en appikon. PWA:n kan användas offline efter att filerna har cachelagrats. Håll den installerade webbappen uppdaterad genom att öppna den när du är online.
+**Radera inte webbplatsdata** för att tvinga en uppdatering: det kan ta bort lokala speldata.
 
 ## Testning
 
-- `npm test` kör automatiserade tester för spelmotor och sparning.
-- I ett Chromium-test med mobil viewport har vi kontrollerat att rensade rutor faktiskt försvinner visuellt efter animationen, att poängen räknas, att nivåer byts och att NOVA-varningen fungerar.
-- Fysisk iPhone med Safari återstår att kontrollera.
+Kör `npm test` med Node.js 22 eller senare. De 24 testerna omfattar spelmotorn och ett simulerat gränssnittsflöde för hjälp, NOVA och låst bräde. Den här versionen har inte provspelats på fysisk iPhone eller i mobil webbläsare.
 
-## Filer
+## PWA och datalagring
 
-`index.html` – appens UI; `styles.css` – utseende; `game.js` – interaktion och animation; `engine.js` – regler, poäng, nivåer och sparning; `sw.js` – offline-cache; `assets/` – ikoner och ljud; `tests/` – automatisk testning.
+`index.html` och `styles.css` – layout, `game.js` – dragstyrning och rendering, `engine.js` – spelregler, `sw.js` – offline-cache, `manifest.webmanifest` samt `assets/` – appikon och ljud. `tests/` – automatiska tester.
+
+Speldata sparas lokalt i webbläsaren under samma nyckel som i tidigare versioner, så poäng och rekord kan normalt fortsätta i den nya versionen. Ett bräde som redan har tömts av den gamla buggen går dock inte att återskapa automatiskt.

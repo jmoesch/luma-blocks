@@ -20,9 +20,9 @@ test('nytt spel börjar på nivå 1 med tre block',()=>{
   assert.equal(e.state.rack.filter(Boolean).length,3);
   assert.equal(e.state.score,0);
   assert.equal(e.state.level,1);
-  assert.equal(linesNeeded(1),1);
-  assert.equal(linesNeeded(2),2);
-  assert.equal(linesNeeded(6),5);
+  assert.equal(linesNeeded(1),5);
+  assert.equal(linesNeeded(2),7);
+  assert.equal(linesNeeded(6),15);
 });
 test('felaktig placering nekas och poäng ges bara för giltiga block',()=>{
   const s=createState();s.rack=[piece('square2'),piece('dot'),piece('dot')];
@@ -32,31 +32,36 @@ test('felaktig placering nekas och poäng ges bara för giltiga block',()=>{
   assert.equal(e.place(1,0,0),null);
   assert.equal(e.place(1,7,7).gained,10);
 });
-test('hel rad rensas synligt i state, poäng och nivå 2 kommer',()=>{
+test('en rad rensas och ger poäng men INTE ny nivå eller tom spelplan',()=>{
   const s=createState();s.board[3]=[1,1,1,1,1,1,1,null];s.rack=[piece('dot',2),piece('dot'),piece('dot')];
   s.board[2][0]=4;
   const e=testEngine(s);
   const o=e.place(0,3,7);
   assert.equal(o.clearedLines,1);
+  assert.equal(o.levelUp,false);
+  assert.equal(o.toLevel,1);
+  assert.equal(o.gained,110);
+  assert.equal(e.state.score,110);
+  assert.ok(e.state.board[3].every(v=>v===null));
+  assert.equal(e.state.board[2][0],4,'ett block utanför full rad MÅSTE ligga kvar');
+  assert.equal(e.state.levelLines,1);
+  assert.equal(e.state.totalLines,1);
+  assert.equal(e.state.rack.filter(Boolean).length,2);
+});
+test('nivåuppgång efter fem rensade linjer bevarar ALLA andra block och racket',()=>{
+  const s=createState();s.levelLines=4;
+  s.board[3]=[1,1,1,1,1,1,1,null];s.board[2][0]=4;
+  s.rack=[piece('dot',2),piece('square2'),piece('bar3H')];
+  const e=testEngine(s),o=e.place(0,3,7);
   assert.equal(o.levelUp,true);
   assert.equal(o.toLevel,2);
-  assert.equal(o.gained,360); // 10 for placement + 100 line + 250 for level 1.
-  assert.equal(e.state.score,360);
-  assert.ok(e.state.board.every(row=>row.every(v=>v===null)));
+  assert.equal(e.state.level,2);
   assert.equal(e.state.levelLines,0);
-  assert.equal(e.state.totalLines,1);
-  assert.equal(e.state.rack.filter(Boolean).length,3);
-});
-test('rensa rad på nivå 2 utan att nivåbytet nollställer andra rutor',()=>{
-  const s=createState();s.level=2;s.board[3]=[1,1,1,1,1,1,1,null];
-  s.board[2][0]=4;s.rack=[piece('dot',2),piece('dot'),piece('dot')];
-  const e=testEngine(s),o=e.place(0,3,7);
-  assert.equal(o.clearedLines,1);
-  assert.equal(o.gained,110);
-  assert.equal(o.levelUp,false);
+  assert.equal(o.gained,360);
+  assert.equal(e.state.board[2][0],4,'nivåbyte får ALDRIG tömma befintlig spelplan');
   assert.ok(e.state.board[3].every(v=>v===null));
-  assert.equal(e.state.board[2][0],4);
-  assert.equal(e.state.levelLines,1);
+  assert.equal(e.state.rack[1].shape,'square2','oanvänt block måste vara kvar');
+  assert.equal(e.state.rack[2].shape,'bar3H');
 });
 test('rad och kolumn rensas samtidigt, korsning räknas bara en gång',()=>{
   const s=createState();s.level=3;
@@ -122,12 +127,40 @@ test('NOVA ger ett nytt möjligt drag genom att öppna rätt ruta',()=>{
   assert.equal(e.state.isGameOver,false);
   assert.ok(e.place(0,0,0));
 });
-test('när NOVA saknas och inga drag passar är omgången slut',()=>{
+test('när NOVA saknas och inga drag passar erbjuds nästa nivå (inte game over)',()=>{
   const s=createState();s.board=diagonalGapBoard();s.rack=[piece('dominoH'),null,null];
   const e=testEngine(s),status=e.checkStuck();
   assert.equal(status.needsNova,false);
-  assert.equal(status.gameOver,true);
-  assert.equal(e.state.isGameOver,true);
+  assert.equal(status.gameOver,false);
+  assert.equal(status.readyForNextLevel,true);
+  assert.equal(e.state.isGameOver,false);
+});
+test('låst spelplan: fortsätt till nästa nivå behåller poäng men nollställer brädet',()=>{
+  const s=createState();s.board=diagonalGapBoard();s.rack=[piece('dominoH'),null,null];
+  s.score=735;s.bestScore=900;s.levelLines=3;s.level=2;
+  const e=testEngine(s);
+  const info=e.advanceBlockedLevel();
+  assert.equal(info.toLevel,3);
+  assert.equal(e.state.level,3);
+  assert.equal(e.state.levelLines,0);
+  assert.equal(e.state.score,735);
+  assert.equal(e.state.bestScore,900);
+  assert.ok(e.state.board.every(row=>row.every(v=>v===null)));
+  assert.equal(e.state.rack.filter(Boolean).length,3);
+  assert.equal(e.hasAnyMove(),true);
+});
+test('man får inte byta nivå när ett vanligt drag fortfarande är möjligt',()=>{
+  const e=new GameEngine(null,fixedRandom);
+  assert.equal(e.advanceBlockedLevel(),false);
+  assert.equal(e.state.level,1);
+});
+test('sparat förlorat v1.2.1-spel låses upp och kan fortsätta',()=>{
+  const s=createState();s.board=diagonalGapBoard();s.rack=[piece('dominoH'),null,null];
+  s.isGameOver=true;s.score=250;s.level=1;
+  const e=testEngine(s);
+  assert.equal(e.state.isGameOver,false);
+  assert.equal(e.checkStuck().readyForNextLevel,true);
+  assert.equal(e.state.score,250);
 });
 test('NOVA som inte öppnar ett drag kan ge förnyad varning om token finns',()=>{
   const s=createState();s.board=diagonalGapBoard();s.rack=[piece('square3'),null,null];s.novaTokens=2;
@@ -137,14 +170,27 @@ test('NOVA som inte öppnar ett drag kan ge förnyad varning om token finns',()=
   assert.equal(e.state.novaTokens,1);
   assert.equal(e.state.isGameOver,false);
 });
-test('fullt bräde med NOVA och tomt rack kan räddas efter lagringsåterställning',()=>{
-  // Avoid entirely filled lines that the migration automatically repairs.
-  const s=createState();s.board=diagonalGapBoard();s.rack=[null,null,null];s.novaTokens=1;
-  const e=testEngine(s);
-  assert.equal(e.hasAnyMove(),false);
-  assert.equal(e.useNova(0,1),true);
-  assert.equal(e.state.rack.filter(Boolean).length,3);
-  assert.equal(e.state.isGameOver,false);
+test('tomt blockställ vid återläsning fylls utan att förbruka NOVA eller byta nivå',()=>{
+  for(const tokens of [0,1]){
+    const s=createState();s.board=diagonalGapBoard();s.novaTokens=tokens;
+    const e=testEngine(s);
+    assert.equal(e.hasAnyMove(),true);
+    assert.equal(e.state.rack.filter(Boolean).length,3);
+    assert.equal(e.state.novaTokens,tokens);
+    assert.equal(e.state.level,1);
+    assert.deepEqual(e.state.board,s.board);
+  }
+});
+test('NOVA-belöning räknas vid dubbelrensning och respekterar taket',()=>{
+  for(const tokens of [0,2,3]){
+    const s=createState();s.novaEnergy=3;s.novaTokens=tokens;
+    s.rack=[piece('dot'),null,null];
+    for(let i=1;i<8;i++){s.board[i][0]=1;s.board[0][i]=2;}
+    const e=testEngine(s),outcome=e.place(0,0,0);
+    assert.equal(outcome.novaEarned,tokens===3?0:1);
+    assert.equal(e.state.novaEnergy,1);
+    assert.equal(e.state.novaTokens,Math.min(3,tokens+1));
+  }
 });
 test('gammal v1.1-lagring migreras utan att poäng och bräde tappas',()=>{
   const s=createState();delete s.level;delete s.levelLines;delete s.totalLines;delete s.rescuesUsed;
@@ -183,7 +229,10 @@ test('slumpmässiga spel håller alltid giltigt tillstånd',()=>{
         outer:for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(e.state.board[r][c]!==null){
           assert.equal(e.useNova(r,c),true);break outer;
         }
-      }else {assert.equal(e.checkStuck().gameOver,true);}
+      }else {
+        assert.equal(e.checkStuck().readyForNextLevel,true);
+        assert.ok(e.advanceBlockedLevel());
+      }
       assert.equal(validateState(e.state),true);
     }
   }

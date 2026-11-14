@@ -13,7 +13,8 @@
 }
 * { box-sizing:border-box; }
 html, body { height:100%; width:100%; margin:0; padding:0; overflow:hidden; background:var(--bg); }
-body { touch-action:none; -webkit-user-select:none; user-select:none; overscroll-behavior:none; }
+.app { touch-action:none; }
+body { -webkit-user-select:none; user-select:none; overscroll-behavior:none; }
 button { font:inherit; -webkit-tap-highlight-color:transparent; cursor:pointer; }
 button:focus-visible { outline:2px solid var(--aqua); outline-offset:3px; }
 .app {
@@ -121,7 +122,7 @@ button:focus-visible { outline:2px solid var(--aqua); outline-offset:3px; }
 .modal-layer { position:fixed;z-index:40;inset:0;display:flex;justify-content:center;align-items:center;padding:24px; }
 .modal-layer[hidden],[hidden] {display:none!important;}
 .modal-backdrop {position:absolute;inset:0;background:rgba(3,7,22,.83);backdrop-filter:blur(7px);}
-.modal-card {position:relative;width:min(100%,355px);border-radius:24px;border:1px solid rgba(121,217,247,.23);background:linear-gradient(165deg,#223052,#17213d);box-shadow:0 24px 70px rgba(0,0,0,.45), inset 0 1px rgba(255,255,255,.09);padding:27px 24px 24px;text-align:center;}
+.modal-card {position:relative;max-height:100%;overflow-y:auto;overscroll-behavior:contain;width:min(100%,355px);border-radius:24px;border:1px solid rgba(121,217,247,.23);background:linear-gradient(165deg,#223052,#17213d);box-shadow:0 24px 70px rgba(0,0,0,.45), inset 0 1px rgba(255,255,255,.09);padding:27px 24px 24px;text-align:center;}
 .modal-kicker {color:var(--aqua);letter-spacing:2.5px;font-size:10px;font-weight:850;}
 .modal-card h1 {font-size:27px;margin:11px 0 15px;line-height:1.13;letter-spacing:-.5px;}
 .modal-body {color:#bbcae3;font-size:14px;line-height:1.6;margin:10px 0 23px;}
