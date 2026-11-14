@@ -44,6 +44,7 @@ test('låst bräde kan räddas även efter hjälp, avbruten NOVA och fördröjd 
     timers.find(t=>t.ms===160).f();
     id('modalActions').children[0].fire('click');
     assert.equal(id('modalTitle').textContent,'Använd NOVA?');
+    assert.equal(id('modalActions').children.length,1);
     id('modalActions').children[0].fire('click');
     id('novaBtn').fire('click');
     assert.equal(id('modal').hidden,false);

@@ -1,4 +1,4 @@
-import { GameEngine, SHAPES, dims, SIDE, loadState, saveState, linesNeeded, SETTINGS_KEY } from './engine.js?v=1.2.3';
+import { GameEngine, SHAPES, dims, SIDE, loadState, saveState, linesNeeded, SETTINGS_KEY } from './engine.js?v=1.2.4';
 
 const $=id=>document.getElementById(id);
 const app=$('app'), board=$('board'), boardStack=$('boardStack'), boardArea=document.querySelector('.game-area');
@@ -19,8 +19,15 @@ const colors=[
 const format=new Intl.NumberFormat('sv-SE');
 let boardSize=0, cell=0, selected=null, drag=null, novaMode=false, soundOn=!noSound;
 let animation=null, rafAnimation=0, resizeRaf=0, toastTimer=0, modalType=null, focusBeforeModal=null;
-const audio={place:new Audio('./assets/place.wav'),clear:new Audio('./assets/clear.wav')};
-Object.values(audio).forEach(a=>{a.preload='auto';a.volume=.58;});
+import { createGameAudio } from './audio.js?v=1.2.4';
+const sound=createGameAudio(window);
+function unlockSound(){if(soundOn)sound.unlock();}
+for(const event of ['pointerdown','pointerup','touchend','keydown']){
+  document.addEventListener(event,unlockSound,{capture:true,passive:true});
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible')unlockSound();
+});
 
 function rounded(ctx,x,y,w,h,r) {
   ctx.beginPath();ctx.roundRect(x,y,Math.max(0,w),Math.max(0,h),Math.min(r,Math.max(0,w)/2,Math.max(0,h)/2));
@@ -164,8 +171,7 @@ function showToast(text) {
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('show'),1750);
 }
 function play(name) {
-  if(!soundOn)return;
-  try{const a=audio[name].cloneNode();a.volume=name==='clear'?.7:.48;const p=a.play();if(p?.catch)p.catch(()=>{});}catch{}
+  if(soundOn)sound.play(name);
 }
 function scoreFloat(message) {
   const node=$('floatingScore');node.textContent=message;
@@ -191,7 +197,7 @@ function afterMove(outcome) {
   }else play('place');
   if(outcome.levelUp)showLevelBanner(outcome.toLevel);
   // On a blocked board show NOVA before offering a fresh level.
-  if(outcome.readyForNextLevel || outcome.needsNova) setTimeout(checkBlockedBoard, outcome.clearedLines?560:160);
+  if(outcome.gameOver || outcome.needsNova) setTimeout(checkBlockedBoard, outcome.clearedLines?560:160);
 }
 function showLevelBanner(level) {
   const el=$('levelBanner');
@@ -204,7 +210,7 @@ function showLevelBanner(level) {
 function checkBlockedBoard() {
   if(modalType || novaMode || engine.hasAnyMove())return;
   if(engine.state.novaTokens>0)openModal('stuck');
-  else openModal('nextlevel');
+  else openModal('gameover');
 }
 function selectPiece(index) {
   if(novaMode){novaMode=false;}
@@ -337,15 +343,6 @@ function restart() {
   updateHUD();drawBoard();drawRack();
   scoreFloat('NYTT SPEL');
 }
-function goNextLevel() {
-  const outcome=engine.advanceBlockedLevel();
-  if(!outcome)return;
-  modal.hidden=true;modalType=null;app.inert=false;
-  selected=null;drag=null;novaMode=false;animation=null;
-  saveState(engine.state);
-  updateHUD();drawBoard();drawRack();
-  showLevelBanner(outcome.toLevel);
-}
 function modalButton(label,kind,fn) {
   const button=document.createElement('button');button.textContent=label;
   if(kind==='primary')button.classList.add('primary');
@@ -354,7 +351,7 @@ function modalButton(label,kind,fn) {
   return button;
 }
 function openModal(type) {
-  if((modalType==='nextlevel'||modalType==='stuck')&&type!=='nextlevel')return;
+  if(modalType==='gameover'||modalType==='stuck')return;
   if(drag)stopDrag();
   focusBeforeModal=document.activeElement;
   app.inert=true;
@@ -365,7 +362,7 @@ function openModal(type) {
   let focusTarget;
   if(type==='help') {
     kicker.textContent='SÅ SPELAR DU';title.textContent='Enkelt att börja';
-    modalBody.innerHTML=`<div class="instructions"><p><strong>1.</strong> Dra block från de tre rutorna till spelplanen. Du kan även trycka på ett block och sedan på rutnätet.</p><p><strong>2.</strong> Fyll en hel rad eller kolumn för att rensa den och få poäng. Efter flera rensade linjer stiger du i nivå, men alla andra block ligger kvar på spelplanen.</p><p><strong>3.</strong> Fyra rensade linjer ger en <strong>NOVA</strong>. Med den kan du ta bort en blockerande ruta. Du kan spara högst tre.</p><p>Om inga block får plats får du först möjlighet att använda NOVA. Du kan annars gå vidare till nästa nivå på en ny spelplan, utan att förlora dina poäng. Spelet sparas automatiskt.</p><p><small>Version 1.2.3</small></p><p><strong>På iPhone:</strong> öppna sidan i Safari, tryck på Dela och välj <em>Lägg till på hemskärmen</em> för att installera spelet.</p></div>`;
+    modalBody.innerHTML=`<div class="instructions"><p><strong>1.</strong> Dra block från de tre rutorna till spelplanen. Du kan även trycka på ett block och sedan på rutnätet.</p><p><strong>2.</strong> Fyll en hel rad eller kolumn för att rensa den och få poäng. Efter flera rensade linjer stiger du i nivå, men alla andra block ligger kvar på spelplanen.</p><p><strong>3.</strong> Fyra rensade linjer ger en <strong>NOVA</strong>. Med den kan du ta bort en blockerande ruta. Du kan spara högst tre.</p><p>Om inga block får plats får du först möjlighet att använda NOVA. Om brädet fortfarande är låst när din sista NOVA är använd är omgången slut. Spelet sparas automatiskt.</p><p><small>Version 1.2.4</small></p><p><strong>På iPhone:</strong> öppna sidan i Safari, tryck på Dela och välj <em>Lägg till på hemskärmen</em> för att installera spelet.</p></div>`;
     focusTarget=modalButton('FORTSÄTT SPELA','primary',closeModal);
   }else if(type==='stuck') {
     kicker.textContent='INGA MÖJLIGA DRAG';title.textContent='Använd NOVA?';
@@ -377,31 +374,31 @@ function openModal(type) {
       drawBoard();drawRack();updateHUD();
       showToast('Välj en ifylld ruta att ta bort');
     });
-    modalButton('NÄSTA NIVÅ (NY SPELPLAN)','secondary',goNextLevel);
+
   }else if(type==='new'){
     kicker.textContent='NY OMGÅNG';title.textContent='Börja om?';
     modalBody.textContent='Dina nuvarande poäng och din spelplan återställs. Ditt rekord behålls.';
     focusTarget=modalButton('JA, NYTT SPEL','primary',restart);
     modalButton('AVBRYT','secondary',closeModal);
-  }else if(type==='nextlevel'){
-    kicker.textContent='INGA MÖJLIGA DRAG';title.textContent='Fortsätt spela!';
-    modalBody.innerHTML=`<div class="modal-points">${format.format(engine.state.score)}</div><p>Inga block får plats och du har ingen NOVA kvar. Du kan fortsätta på nivå ${engine.state.level+1} med en ny spelplan. Dina poäng och ditt rekord behålls.</p>`;
-    focusTarget=modalButton(`FORTSÄTT TILL NIVÅ ${engine.state.level+1}`,'primary',goNextLevel);
+  }else if(type==='gameover'){
+    kicker.textContent='INGA MÖJLIGA DRAG';title.textContent='Omgången är slut';
+    modalBody.innerHTML=`<div class="modal-points">${format.format(engine.state.score)}</div><p>Inget block får plats och du har ingen NOVA kvar. Ditt rekord är ${format.format(engine.state.bestScore)} poäng.</p>`;
+    focusTarget=modalButton('NYTT SPEL','primary',restart);
   }
   modal.hidden=false;
   focusTarget?.focus();
 }
 function closeModal() {
-  if(modalType==='nextlevel'||modalType==='stuck')return;
+  if(modalType==='gameover'||modalType==='stuck')return;
   modal.hidden=true;modalType=null;app.inert=false;
   if(focusBeforeModal?.focus)focusBeforeModal.focus();
   checkBlockedBoard();
 }
 modal.querySelector('.modal-backdrop').addEventListener('click',()=>{
-  if(modalType!=='nextlevel'&&modalType!=='stuck')closeModal();
+  if(modalType!=='gameover'&&modalType!=='stuck')closeModal();
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape' && modalType && modalType!=='nextlevel'&&modalType!=='stuck')closeModal();
+  if(e.key==='Escape' && modalType && modalType!=='gameover'&&modalType!=='stuck')closeModal();
 });
 window.addEventListener('resize',scheduleLayout);
 if(window.visualViewport)window.visualViewport.addEventListener('resize',scheduleLayout);

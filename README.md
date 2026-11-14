@@ -1,4 +1,4 @@
-# Luma Blocks PWA — v1.2.3
+# Luma Blocks PWA — v1.2.4
 
 Ett komplett fristående iPhone-anpassat HTML5/JavaScript-spel med offlinefunktion. Inga utvecklaravgifter, ingen kompilering och inga externa bibliotek.
 
@@ -7,13 +7,12 @@ Ett komplett fristående iPhone-anpassat HTML5/JavaScript-spel med offlinefunkti
 - När en **enda rad eller kolumn blir full** tas bara dess åtta rutor bort. Andra rutor **ligger kvar**, poängen räknas och nivån höjs om nivåmålet nås.
 - En nivå kräver nu **flera** rensade linjer: nivå 1 kräver 5; nivå 2 kräver 7; nivå 3 kräver 9; sedan ökar målet upp till högst 15 linjer per nivå.
 - Vid ett uppnått nivåmål kommer en liten nivånotis och bonuspoäng. **Övriga block och de kvarvarande valbara blocken behålls**, även när nivån höjs.
-- Om inget av de kvarvarande blocken går att placera visas först ett NOVA-alternativ (om NOVA finns). Du kan använda NOVA för att försöka frigöra en ruta, eller välja **Nästa nivå (ny spelplan)**.
-- Saknas NOVA vid ett helt låst läge erbjuds **Fortsätt till nivå X**, med ny tom spelplan och nya block. Samlad poäng, rekord och oanvänd NOVA behålls.
-- **Nytt spel** är separat från **nästa nivå**: det nollställer poängen men sparar rekordet.
+- När brädet är låst kan du använda en NOVA för att ta bort en fylld ruta. Om brädet förblir låst erbjuds nästa laddning. När möjliga drag och NOVA är slut avslutas omgången. Ett nytt spel behåller rekordet.
+- Rensade linjer belönas med en stigande fyrtonsmelodi. På enheter med Web Audio återanvänds samma ljudmotor.
 
 ## Uppdatera GitHub Pages
 
-1. Packa upp `LumaBlocks-PWA-v1.2.3.zip`.
+1. Packa upp `LumaBlocks-PWA-v1.2.4.zip`.
 2. Gå till `https://github.com/jmoesch/luma-blocks`.
 3. Välj **Add file → Upload files** och dra **alla filer och undermappar inuti mappen** till sidan, så att `index.html`, `engine.js`, `game.js`, `styles.css` och `sw.js` ligger direkt i repositoryts rot.
 4. Bekräfta ändringarna med **Commit changes**.
@@ -24,7 +23,7 @@ Ett komplett fristående iPhone-anpassat HTML5/JavaScript-spel med offlinefunkti
 
 ## Testning
 
-Kör `npm test` med Node.js 22 eller senare. De 24 testerna omfattar spelmotorn och ett simulerat gränssnittsflöde för hjälp, NOVA och låst bräde. Den här versionen har inte provspelats på fysisk iPhone eller i mobil webbläsare.
+Kör `npm test` med Node.js 22 eller senare. Testerna omfattar spelmotorn och ett simulerat gränssnittsflöde för hjälp, NOVA och låst bräde. Den här versionen har inte provspelats på fysisk iPhone eller i mobil webbläsare.
 
 ## PWA och datalagring
 

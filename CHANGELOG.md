@@ -1,5 +1,10 @@
 # Ändringslogg
 
+## v1.2.4
+
+- Nivån höjs när linjemålet nås. Låst bräde ger NOVA-val eller avslutad omgång.
+- Ny rensningsmelodi och återanvändbar ljudmotor med återaktivering efter avbrott.
+
 ## v1.2.3
 
 - Varningen för låst bräde återkommer efter hjälp eller avbrutet NOVA-val.

@@ -127,40 +127,20 @@ test('NOVA ger ett nytt möjligt drag genom att öppna rätt ruta',()=>{
   assert.equal(e.state.isGameOver,false);
   assert.ok(e.place(0,0,0));
 });
-test('när NOVA saknas och inga drag passar erbjuds nästa nivå (inte game over)',()=>{
-  const s=createState();s.board=diagonalGapBoard();s.rack=[piece('dominoH'),null,null];
-  const e=testEngine(s),status=e.checkStuck();
-  assert.equal(status.needsNova,false);
-  assert.equal(status.gameOver,false);
-  assert.equal(status.readyForNextLevel,true);
-  assert.equal(e.state.isGameOver,false);
-});
-test('låst spelplan: fortsätt till nästa nivå behåller poäng men nollställer brädet',()=>{
-  const s=createState();s.board=diagonalGapBoard();s.rack=[piece('dominoH'),null,null];
-  s.score=735;s.bestScore=900;s.levelLines=3;s.level=2;
+test('låst bräde utan NOVA avslutar omgången även efter omladdning',()=>{
+  const s=createState();s.board=diagonalGapBoard();s.rack=[piece('square3'),null,null];
+  s.level=3;s.levelLines=2;s.score=735;s.bestScore=900;s.novaTokens=1;
   const e=testEngine(s);
-  const info=e.advanceBlockedLevel();
-  assert.equal(info.toLevel,3);
-  assert.equal(e.state.level,3);
-  assert.equal(e.state.levelLines,0);
-  assert.equal(e.state.score,735);
-  assert.equal(e.state.bestScore,900);
-  assert.ok(e.state.board.every(row=>row.every(v=>v===null)));
-  assert.equal(e.state.rack.filter(Boolean).length,3);
-  assert.equal(e.hasAnyMove(),true);
-});
-test('man får inte byta nivå när ett vanligt drag fortfarande är möjligt',()=>{
-  const e=new GameEngine(null,fixedRandom);
-  assert.equal(e.advanceBlockedLevel(),false);
-  assert.equal(e.state.level,1);
-});
-test('sparat förlorat v1.2.1-spel låses upp och kan fortsätta',()=>{
-  const s=createState();s.board=diagonalGapBoard();s.rack=[piece('dominoH'),null,null];
-  s.isGameOver=true;s.score=250;s.level=1;
-  const e=testEngine(s);
-  assert.equal(e.state.isGameOver,false);
-  assert.equal(e.checkStuck().readyForNextLevel,true);
-  assert.equal(e.state.score,250);
+  assert.equal(e.checkStuck().needsNova,true);
+  assert.ok(e.useNova(0,1));
+  for(const game of [e,testEngine(e.state)]){
+    assert.equal(game.state.isGameOver,true);
+    assert.equal(game.state.level,3);
+    assert.equal(game.state.levelLines,2);
+    assert.equal(game.state.score,735);
+    assert.equal(game.state.bestScore,900);
+    assert.equal(game.place(0,0,0),null);
+  }
 });
 test('NOVA som inte öppnar ett drag kan ge förnyad varning om token finns',()=>{
   const s=createState();s.board=diagonalGapBoard();s.rack=[piece('square3'),null,null];s.novaTokens=2;
@@ -230,8 +210,7 @@ test('slumpmässiga spel håller alltid giltigt tillstånd',()=>{
           assert.equal(e.useNova(r,c),true);break outer;
         }
       }else {
-        assert.equal(e.checkStuck().readyForNextLevel,true);
-        assert.ok(e.advanceBlockedLevel());
+        assert.equal(e.checkStuck().gameOver,true);
       }
       assert.equal(validateState(e.state),true);
     }

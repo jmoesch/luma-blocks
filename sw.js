@@ -1,8 +1,8 @@
 /* Luma Blocks PWA: cache only this app, including its two original sounds. */
 const PREFIX = 'luma-blocks:' + self.registration.scope + ':';
-const CACHE = PREFIX + '1.2.3';
+const CACHE = PREFIX + '1.2.4';
 const ASSETS = [
-  './','./index.html','./styles.css?v=1.2.3','./game.js?v=1.2.3','./engine.js?v=1.2.3','./manifest.webmanifest',
+  './','./index.html','./styles.css?v=1.2.4','./game.js?v=1.2.4','./engine.js?v=1.2.4','./audio.js?v=1.2.4','./manifest.webmanifest',
   './assets/icon-192.png','./assets/icon-512.png','./assets/apple-touch-icon.png',
   './assets/favicon.png','./assets/place.wav','./assets/clear.wav'
 ];
