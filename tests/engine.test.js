@@ -168,7 +168,7 @@ test('NOVA-belöning räknas vid dubbelrensning och respekterar taket',()=>{
     for(let i=1;i<8;i++){s.board[i][0]=1;s.board[0][i]=2;}
     const e=testEngine(s),outcome=e.place(0,0,0);
     assert.equal(outcome.novaEarned,tokens===3?0:1);
-    assert.equal(e.state.novaEnergy,1);
+    assert.equal(e.state.novaEnergy,tokens>=2?0:1);
     assert.equal(e.state.novaTokens,Math.min(3,tokens+1));
   }
 });
@@ -215,4 +215,50 @@ test('slumpmässiga spel håller alltid giltigt tillstånd',()=>{
       assert.equal(validateState(e.state),true);
     }
   }
+});
+
+test('nya ställ har en lösning även på täta bräden, utan NOVA',()=>{
+  let seed=1729;
+  const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/2**32);
+  function solvable(board,remaining){
+    if(!remaining.length)return true;
+    for(const [i,p] of remaining.entries())for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+      const cells=SHAPES[p.shape].map(t=>[r+t.row,c+t.col]);
+      if(cells.some(([y,x])=>board[y]?.[x]!==null))continue;
+      const copy=board.map(row=>row.slice());
+      for(const [y,x] of cells)copy[y][x]=0;
+      const rows=copy.map(row=>row.every(v=>v!==null));
+      const cols=copy[0].map((_,x)=>copy.every(row=>row[x]!==null));
+      for(let y=0;y<8;y++)for(let x=0;x<8;x++)if(rows[y]||cols[x])copy[y][x]=null;
+      if(solvable(copy,remaining.filter((_,j)=>i!==j)))return true;
+    }
+    return false;
+  }
+  for(let i=0;i<240;i++){
+    const s=createState();s.level=1+i%20;
+    const density=(i%10)/10;
+    s.board=s.board.map((row,y)=>row.map((_,x)=>x!==y&&random()<density?0:null));
+    const e=new GameEngine(s,random);
+    assert.deepEqual(e.state.board,s.board);
+    assert.ok(solvable(s.board,e.state.rack),'ställ '+i);
+  }
+});
+
+test('separat rekord kan läsas efter korrupt omgång',async()=>{
+  const {loadBest,SAVE_KEY}=await import('../engine.js');
+  const values=new Map(),store={getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)};
+  saveState(createState(995),store);
+  values.set(SAVE_KEY,'?');
+  assert.equal(loadState(store),null);
+  assert.equal(loadBest(store),995);
+});
+
+test('ställets ursprungliga former bevaras efter placering och omladdning',()=>{
+  const s=createState();s.rack=[piece('bar4V'),piece('dot'),piece('dot')];
+  const e=testEngine(s);e.place(0,0,0);
+  assert.deepEqual(e.state.rackShapes,['bar4V','dot','dot']);
+  const resumed=testEngine(e.state);
+  assert.deepEqual(resumed.state.rackShapes,e.state.rackShapes);
+  resumed.place(1,0,1);resumed.place(2,0,2);
+  assert.deepEqual(resumed.state.rackShapes,resumed.state.rack.map(p=>p.shape));
 });

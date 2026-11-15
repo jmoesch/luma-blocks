@@ -2,28 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createGameAudio} from '../audio.js';
 
-test('placering och rensning använder samma ljudmotor som återupptas efter avbrott',async()=>{
-  const tones=[], contexts=[];
-  class Context {
-    state='suspended';currentTime=4;resumes=0;
-    constructor(){contexts.push(this);}
-    async resume(){this.resumes++;this.state='running';}
-    createOscillator(){
-      const tone={frequency:{},connect(){},disconnect(){},start(t){this.startTime=t;},stop(){}};
-      tones.push(tone);return tone;
-    }
-    createGain(){return {connect(){},disconnect(){},gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}}};}
+test('ett nekat ljud kan startas igen och gamla avbrott ignoreras',async()=>{
+  const clips=[],calls=[],errors=[];
+  class Clip{
+    constructor(src){this.src=src;clips.push(this);}
+    pause(){}
+    play(){calls.push(this.src);return new Promise((resolve,reject)=>{this.reject=reject;});}
   }
-  const sound=createGameAudio({AudioContext:Context});
+  const sound=createGameAudio(Clip,()=>errors.push(1));
   sound.play('place');
-  await new Promise(resolve=>setImmediate(resolve));
-  contexts[0].state='interrupted';
   sound.play('clear');
-  assert.equal(contexts.length,1);
-  assert.equal(contexts[0].resumes,2);
-  assert.equal(tones.length,5);
-  for(let i=2;i<tones.length;i++){
-    assert.ok(tones[i].frequency.value>tones[i-1].frequency.value);
-    assert.ok(tones[i].startTime>tones[i-1].startTime);
-  }
+  clips[0].reject();
+  await Promise.resolve();
+  assert.deepEqual(errors,[]);
+  clips[2].reject();
+  await Promise.resolve();
+  assert.ok(sound.failed);
+  assert.equal(errors.length,1);
+  clips[3].currentTime=.2;
+  sound.play('clear');
+  assert.equal(clips[3].currentTime,0);
+  assert.equal(sound.failed,false);
+  assert.deepEqual(calls,[clips[0].src,clips[2].src,clips[3].src]);
 });

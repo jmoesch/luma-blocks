@@ -1,5 +1,5 @@
 /**
- * Luma Blocks v1.2.4 — deterministic puzzle and non-destructive level progression.
+ * Luma Blocks v1.3.2 — deterministic puzzle and non-destructive level progression.
  * No dependencies on the DOM; testable using Node.js.
  */
 export const SIDE = 8;
@@ -56,7 +56,7 @@ export function validateState(s) {
     &&Array.isArray(s.board)&&s.board.length===SIDE
     &&s.board.every(row=>Array.isArray(row)&&row.length===SIDE&&row.every(v=>v===null||(Number.isInteger(v)&&v>=0&&v<HUES)))
     &&Array.isArray(s.rack)&&s.rack.length===3
-    &&s.rack.every(p=>p===null||(typeof p==='object'&&Object.hasOwn(SHAPES,p.shape)&&Number.isInteger(p.hue)&&p.hue>=0&&p.hue<HUES))
+    &&s.rack.every(p=>p===null||(typeof p==='object'&&Object.prototype.hasOwnProperty.call(SHAPES,p.shape)&&Number.isInteger(p.hue)&&p.hue>=0&&p.hue<HUES))
     &&['score','bestScore','combo','maxCombo','moves','novaEnergy','novaTokens','level','levelLines','totalLines'].every(k=>Number.isSafeInteger(s[k])&&s[k]>=0)
     &&s.level>=1&&s.levelLines<linesNeeded(s.level)&&s.novaEnergy<4&&s.novaTokens<=3
     &&typeof s.isGameOver==='boolean';
@@ -66,7 +66,15 @@ function migrateSaved(saved) {
   // Accept games from v1.1.0, upgrading them in place while preserving the board and score.
   const s={...saved,level:saved.level??1,levelLines:saved.levelLines??0,
     totalLines:saved.totalLines??0};
-  return validateState(s)?s:null;
+  if(s.novaTokens===3)s.novaEnergy=0;
+  if(!validateState(s))return null;
+  // Older saves only know the pieces still in the rack.
+  const shapes=s.rackShapes;
+  if(!Array.isArray(shapes)||shapes.length!==3||!shapes.every((shape,i)=>
+    (shape===null||Object.prototype.hasOwnProperty.call(SHAPES,shape))&&(!s.rack[i]||s.rack[i].shape===shape))){
+    s.rackShapes=s.rack.map(piece=>piece?.shape??null);
+  }
+  return s;
 }
 function findFilledLines(board) {
   const fullRows=Array.from({length:SIDE},(_,i)=>i).filter(r=>board[r].every(v=>v!==null));
@@ -82,18 +90,18 @@ export class GameEngine {
     this.random=random;
     const restored=migrateSaved(saved);
     if(restored) {
-      this.state=structuredClone(restored);
+      this.state=JSON.parse(JSON.stringify(restored));
       this.repairLegacyLines();
       if(this.state.rack.every(piece=>piece===null))this.refillRack();
       this.checkStuck();
     } else {this.state=createState();this.refillRack();}
   }
   restart() {this.state=createState(this.state.bestScore);this.refillRack();}
-  canPlace(piece,row,col) {
-    if(!piece||!Object.hasOwn(SHAPES,piece.shape)||!Number.isInteger(row)||!Number.isInteger(col))return false;
+  canPlace(piece,row,col,board=this.state.board) {
+    if(!piece||!Object.prototype.hasOwnProperty.call(SHAPES,piece.shape)||!Number.isInteger(row)||!Number.isInteger(col))return false;
     return SHAPES[piece.shape].every(t=>{
       const r=row+t.row,c=col+t.col;
-      return r>=0&&c>=0&&r<SIDE&&c<SIDE&&this.state.board[r][c]===null;
+      return r>=0&&c>=0&&r<SIDE&&c<SIDE&&board[r][c]===null;
     });
   }
   anyPlacement(piece) {
@@ -101,19 +109,47 @@ export class GameEngine {
     return false;
   }
   hasAnyMove() {return this.state.rack.some(p=>p!==null&&this.anyPlacement(p));}
-  availableShapes() {return SHAPE_IDS.filter(shape=>this.anyPlacement({shape,hue:0}));}
-  randomChoice(array) {return array[Math.min(array.length-1,Math.floor(this.random()*array.length))];}
   refillRack() {
-    const available=this.availableShapes();
-    if(!available.length){
+    // Build an actual three-move solution on a private board, including line clears.
+    const board=this.state.board.map(row=>row.slice());
+    const candidates=SHAPE_IDS.filter(shape=>this.anyPlacement({shape}));
+    if(!candidates.length){
       this.state.rack=[null,null,null];
       this.checkStuck();
       return false;
     }
-    // A guaranteed small piece avoids three simultaneously impossible large pieces.
-    const small=available.filter(shape=>SHAPES[shape].length<=3);
-    const chosen=[this.randomChoice(small.length?small:available),this.randomChoice(available),this.randomChoice(available)];
-    this.state.rack=chosen.map(shape=>({shape,hue:Math.min(HUES-1,Math.floor(this.random()*HUES))}));
+    const rack=[];
+    const level=this.state.level;
+    // Keep the early curve, then grow more gradually without a hard plateau.
+    const difficulty=Math.min(1,(level-1)/12)+Math.log1p(Math.max(0,level-13)/8)*0.75;
+    for(let slot=0;slot<3;slot++){
+      const options=[];
+      let total=0;
+      for(const shape of candidates){
+        const positions=[];
+        for(let r=0;r<SIDE;r++)for(let c=0;c<SIDE;c++){
+          if(this.canPlace({shape},r,c,board))positions.push([r,c]);
+        }
+        if(!positions.length)continue;
+        const size=SHAPES[shape].length;
+        const weight=size===1?7:size===2?4:size===3?2.5:(0.55+difficulty*2.1);
+        total+=weight;
+        options.push({shape,positions,limit:total});
+      }
+      const roll=this.random()*total;
+      const option=options.find(o=>roll<o.limit)||options[options.length-1];
+      const [r,c]=option.positions[Math.floor(this.random()*option.positions.length)];
+      const hue=Math.floor(this.random()*HUES);
+      rack.push({shape:option.shape,hue});
+      for(const t of SHAPES[option.shape])board[r+t.row][c+t.col]=hue;
+      for(const t of findFilledLines(board).cleared)board[t.row][t.col]=null;
+    }
+    for(let i=rack.length-1;i>0;i--){
+      const j=Math.floor(this.random()*(i+1));
+      [rack[i],rack[j]]=[rack[j],rack[i]];
+    }
+    this.state.rack=rack;
+    this.state.rackShapes=rack.map(piece=>piece.shape);
     this.state.isGameOver=false;
     return true;
   }
@@ -160,8 +196,9 @@ export class GameEngine {
     s.totalLines+=lines;
     s.levelLines+=lines;
     const previousTokens=s.novaTokens;
-    s.novaEnergy+=lines;
+    if(s.novaTokens<3)s.novaEnergy+=lines;
     while(s.novaEnergy>=4){s.novaEnergy-=4;s.novaTokens=Math.min(3,s.novaTokens+1);}
+    if(s.novaTokens===3)s.novaEnergy=0;
     const fromLevel=s.level;
     let levelUp=false;
     while(s.levelLines>=linesNeeded(s.level)){
@@ -193,9 +230,22 @@ export class GameEngine {
     return true;
   }
 }
+export const BEST_KEY='luma.pwa.best.v1';
+export function loadBest(storage){
+  try{
+    const value=Number((storage??globalThis.localStorage).getItem(BEST_KEY));
+    return Number.isSafeInteger(value)&&value>0?value:0;
+  }catch{return 0;}
+}
 export function loadState(storage) {
   try{const raw=(storage??globalThis.localStorage).getItem(SAVE_KEY);return raw?migrateSaved(JSON.parse(raw)):null;}catch{return null;}
 }
 export function saveState(state,storage) {
-  try{(storage??globalThis.localStorage).setItem(SAVE_KEY,JSON.stringify(state));return true;}catch{return false;}
+  try{
+    const store=storage??globalThis.localStorage;
+    const best=Math.max(loadBest(store),state.bestScore,state.score);
+    store.setItem(BEST_KEY,String(best));
+    store.setItem(SAVE_KEY,JSON.stringify({...state,bestScore:best}));
+    return true;
+  }catch{return false;}
 }

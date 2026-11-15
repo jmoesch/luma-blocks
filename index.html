@@ -13,7 +13,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="64x64" href="./assets/favicon.png">
-  <link rel="stylesheet" href="./styles.css?v=1.2.4">
+  <link rel="stylesheet" href="./styles.css?v=1.3.2">
   <title>Luma Blocks</title>
 </head>
 <body>
@@ -37,7 +37,7 @@
     <section class="stats" aria-label="Poängställning">
       <div class="stat-card score-card">
         <span class="stat-label">POÄNG</span>
-        <strong class="stat-value" id="score" aria-live="polite">0</strong>
+        <strong class="stat-value" id="score">0</strong>
       </div>
       <div class="stat-card best-card">
         <span class="stat-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.6 6.2.9-4.5 4.4 1.1 6.1-5.5-2.9-5.5 2.9 1.1-6.1-4.5-4.4 6.2-.9L12 3Z"/></svg> REKORD</span>
@@ -52,7 +52,9 @@
 
     <section class="game-area" aria-label="Spelplan med 8 gånger 8 rutor">
       <div class="board-stack" id="boardStack">
-        <canvas id="board" aria-label="Spelplan. Välj ett block och placera det på rutnätet." role="img"></canvas>
+        <canvas id="board" aria-label="Spelplan. Välj ett block och placera det på rutnätet." role="application" tabindex="0" aria-describedby="boardKeys"></canvas>
+        <span class="sr-only" id="boardKeys">Välj ett block eller NOVA. Flytta med piltangenterna. Enter placerar blocket eller använder NOVA.</span>
+        <span class="sr-only" id="cellStatus" role="status"></span>
         <div id="boardHint" class="board-hint" hidden>Tryck på en ifylld ruta</div>
         <div id="floatingScore" class="floating-score" aria-hidden="true"></div>
         <div id="levelBanner" class="level-banner" aria-live="polite"></div>
@@ -90,6 +92,6 @@
     </section>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="./game.js?v=1.2.4"></script>
+  <script type="module" src="./game.js?v=1.3.2"></script>
 </body>
 </html>

@@ -144,3 +144,8 @@ button:focus-visible { outline:2px solid var(--aqua); outline-offset:3px; }
 }
 @media(min-width:600px){body{background:#090e20}.app{border-left:1px solid #293755;border-right:1px solid #293755}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#app[data-theme="plum"]{background:linear-gradient(160deg,#38203e,#141329);--aqua:#f0b7e6}
+#app[data-theme="aurora"]{background:linear-gradient(160deg,#133d39,#101b32);--aqua:#99f5cb}
+#board:focus-visible{outline:2px solid var(--aqua)}
