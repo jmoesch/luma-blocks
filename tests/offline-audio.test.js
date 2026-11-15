@@ -13,7 +13,7 @@ test('offlinecachen lämnar rätt WAV-header och ljuddata vid delhämtning',asyn
   vm.runInNewContext(code,{self,URL,Response,caches:{open:async()=>cache}});
   for(const [range,start,end] of [['bytes=0-1',0,1],['bytes=2-',2,data.length-1],['bytes=-4',data.length-4,data.length-1]]){
     let pending;
-    fetchHandler({request:new Request(scope+'assets/clear.wav?v=1.3.2',{headers:{Range:range}}),respondWith:p=>{pending=p;}});
+    fetchHandler({request:new Request(scope+'assets/clear.wav?v=1.3.4',{headers:{Range:range}}),respondWith:p=>{pending=p;}});
     const res=await pending;
     assert.equal(res.status,206);
     assert.equal(res.headers.get('content-range'),`bytes ${start}-${end}/${data.length}`);

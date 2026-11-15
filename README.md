@@ -1,4 +1,4 @@
-# Luma Blocks PWA — v1.3.2
+# Luma Blocks PWA — v1.3.4
 
 Ett komplett fristående iPhone-anpassat HTML5/JavaScript-spel med offlinefunktion. Inga utvecklaravgifter, ingen kompilering och inga externa bibliotek.
 
@@ -14,7 +14,7 @@ Stället genereras genom tre provdrag med rensningar på en kopia av brädet. De
 
 ## Uppdatera GitHub Pages
 
-1. Packa upp `LumaBlocks-PWA-v1.3.2.zip`.
+1. Packa upp `LumaBlocks-PWA-v1.3.4.zip`.
 2. Gå till `https://github.com/jmoesch/luma-blocks`.
 3. Publicera `index.html`, `game.js`, `engine.js`, `audio.js`, `styles.css`, `sw.js`, `manifest.webmanifest` och hela `assets/` direkt i repots rot. Förhandsbild, dokumentation, tester och skript behövs enbart lokalt.
 4. Bekräfta ändringarna med **Commit changes**.
@@ -33,7 +33,7 @@ Kör `npm test` med Node.js 22 eller senare. Testerna omfattar spelmotorn och et
 
 Speldata sparas lokalt i webbläsaren under samma nyckel som i tidigare versioner, så poäng och rekord kan normalt fortsätta i den nya versionen. Ett bräde som redan har tömts av den gamla buggen går dock inte att återskapa automatiskt.
 
-Inför en ny version, kör exempelvis `node scripts/release.mjs 1.3.2` från projektroten och uppdatera ändringsloggen.
+Inför en ny version, kör exempelvis `node scripts/release.mjs 1.3.4` från projektroten och uppdatera ändringsloggen.
 
 Mobiltest med Chromium och pekemulering: kör `python tests/mobile_smoke.py` med Python Playwright och installerad Chromium. En egen Chromium-installation kan väljas med miljövariabeln CHROMIUM_PATH. Testet kontrollerar avbruten touch, glidning, förhandsvisning, släpp och NOVA.
 

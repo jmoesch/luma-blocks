@@ -1,32 +1,38 @@
-// A small fixed pool lets a placement ring out over an earlier clear.
+// Keep the usual media element for both effects. A quick placement during
+// the fanfare uses its own preloaded clip so both sounds can finish.
 export function createGameAudio(AudioElement,onFailure){
-  const pools=new Map();
-  for(const name of ['place','clear']){
-    const clips=Array.from({length:2},()=>{
-      const clip=new AudioElement('./assets/'+name+'.wav?v=1.3.2');
-      clip.preload='auto';
-      return clip;
-    });
-    pools.set(name,{clips,next:0});
-  }
-  let attempt=0,failed=false;
+  const source=name=>'./assets/'+name+'.wav?v=1.3.4';
+  const main=new AudioElement(source('place'));
+  const quick=new AudioElement(source('place'));
+  main.preload=quick.preload='auto';
+  let current='place',attempt=0,failed=false,protectUntil=0;
   function stop(){
     attempt++;
-    for(const {clips} of pools.values())for(const clip of clips)clip.pause();
+    protectUntil=0;
+    main.pause();quick.pause();
     failed=false;
   }
   function play(name){
-    const pool=pools.get(name),clip=pool.clips[pool.next];
-    pool.next=(pool.next+1)%pool.clips.length;
     const ticket=++attempt;
+    const overlap=name==='place'&&current==='clear'&&!main.ended&&performance.now()<protectUntil;
+    const clip=overlap?quick:main;
     failed=false;
     function report(){
       if(ticket!==attempt)return;
-      failed=true;onFailure();
+      failed=true;
+      protectUntil=0;
+      onFailure();
     }
     try{
+      if(!overlap){
+        protectUntil=name==='clear'?performance.now()+1300:0;
+        if(current!==name){
+          main.src=source(name);
+          current=name;
+        }
+      }
       if(clip.error)clip.load();
-      if(clip.currentTime)clip.currentTime=0;
+      else if(clip.currentTime)clip.currentTime=0;
       clip.play().catch(report);
     }catch{report();}
   }

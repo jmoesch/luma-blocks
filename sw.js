@@ -1,10 +1,10 @@
 /* Luma Blocks PWA: cache only this app, including its two original sounds. */
 const PREFIX = 'luma-blocks:' + self.registration.scope + ':';
-const CACHE = PREFIX + '1.3.2';
+const CACHE = PREFIX + '1.3.4';
 const ASSETS = [
-  './','./index.html','./styles.css?v=1.3.2','./game.js?v=1.3.2','./engine.js?v=1.3.2','./audio.js?v=1.3.2','./manifest.webmanifest',
+  './','./index.html','./styles.css?v=1.3.4','./game.js?v=1.3.4','./engine.js?v=1.3.4','./audio.js?v=1.3.4','./manifest.webmanifest',
   './assets/maskable-192.png','./assets/maskable-512.png','./assets/icon-192.png','./assets/icon-512.png','./assets/apple-touch-icon.png',
-  './assets/favicon.png','./assets/place.wav?v=1.3.2','./assets/clear.wav?v=1.3.2'
+  './assets/favicon.png','./assets/place.wav?v=1.3.4','./assets/clear.wav?v=1.3.4'
 ];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));

@@ -1,4 +1,4 @@
-import { GameEngine, SHAPES, dims, SIDE, loadState, loadBest, validateState, SAVE_KEY, saveState, linesNeeded, SETTINGS_KEY } from './engine.js?v=1.3.2';
+import { GameEngine, SHAPES, dims, SIDE, loadState, loadBest, validateState, SAVE_KEY, saveState, linesNeeded, SETTINGS_KEY } from './engine.js?v=1.3.4';
 
 const $=id=>document.getElementById(id);
 const app=$('app'), board=$('board'), boardStack=$('boardStack'), boardArea=document.querySelector('.game-area');
@@ -81,7 +81,7 @@ const colors=[
 const format=new Intl.NumberFormat('sv-SE');
 let boardSize=0, cell=0, selected=null, drag=null, novaMode=false, soundOn=!noSound;
 let animation=null, rafAnimation=0, resizeRaf=0, toastTimer=0, modalType=null, focusBeforeModal=null;
-import { createGameAudio } from './audio.js?v=1.3.2';
+import { createGameAudio } from './audio.js?v=1.3.4';
 const sound=createGameAudio(Audio,()=>showToast('Ljudet kunde inte starta. Tryck på högtalaren för att försöka igen.'));
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden')sound.stop();
@@ -266,16 +266,17 @@ function startClearAnimation(outcome) {
 }
 function afterMove(outcome) {
   if(!outcome)return;
+  play(outcome.clearedLines?'clear':'place');
   selected=null;novaMode=false;preview=null;
   persist();
   updateHUD({pop:true});
   drawRack();drawBoard();
   if(outcome.clearedLines){
     if(navigator.vibrate)navigator.vibrate(18);
-    play('clear');startClearAnimation(outcome);
+    startClearAnimation(outcome);
     scoreFloat(outcome.combo>1?`KOMBO ×${outcome.combo} · +${outcome.gained}`:`+${outcome.gained}`);
     if(outcome.novaEarned>0)showToast('✦ NOVA uppladdad!');
-  }else play('place');
+  }
   if(outcome.levelUp)showLevelBanner(outcome.toLevel);
   // Wait for the clear animation before showing the blocked-board dialog.
   if(outcome.gameOver || outcome.needsNova) setTimeout(checkBlockedBoard, outcome.clearedLines?560:160);
@@ -536,7 +537,7 @@ function openModal(type) {
   let focusTarget;
   if(type==='help') {
     kicker.textContent='SÅ SPELAR DU';title.textContent='Enkelt att börja';
-    modalBody.innerHTML=`<div class="instructions"><p><strong>1.</strong> Dra block från de tre rutorna till spelplanen. Du kan också välja ett block och trycka där du vill lägga det. Håll och glid för att lyfta blocket ovanför fingret. Släpp när det ligger rätt.</p><p><strong>2.</strong> Fyll en hel rad eller kolumn för att rensa den och få poäng. Efter flera rensade linjer stiger du i nivå, men alla andra block ligger kvar på spelplanen.</p><p><strong>3.</strong> Fyra rensade linjer ger en <strong>NOVA</strong>. Med den kan du ta bort en blockerande ruta. Du kan spara högst tre.</p><p>Om inga block får plats får du först möjlighet att använda NOVA. Om brädet fortfarande är låst när din sista NOVA är använd är omgången slut. Spelet sparas automatiskt.</p><p><small>Version 1.3.2</small></p><p><strong>På iPhone:</strong> öppna sidan i Safari, tryck på Dela och välj <em>Lägg till på hemskärmen</em> för att installera spelet.</p></div>`;
+    modalBody.innerHTML=`<div class="instructions"><p><strong>1.</strong> Dra block från de tre rutorna till spelplanen. Du kan också välja ett block och trycka där du vill lägga det. Håll och glid för att lyfta blocket ovanför fingret. Släpp när det ligger rätt.</p><p><strong>2.</strong> Fyll en hel rad eller kolumn för att rensa den och få poäng. Efter flera rensade linjer stiger du i nivå, men alla andra block ligger kvar på spelplanen.</p><p><strong>3.</strong> Fyra rensade linjer ger en <strong>NOVA</strong>. Med den kan du ta bort en blockerande ruta. Du kan spara högst tre.</p><p>Om inga block får plats får du först möjlighet att använda NOVA. Om brädet fortfarande är låst när din sista NOVA är använd är omgången slut. Spelet sparas automatiskt.</p><p><small>Version 1.3.4</small></p><p><strong>På iPhone:</strong> öppna sidan i Safari, tryck på Dela och välj <em>Lägg till på hemskärmen</em> för att installera spelet.</p></div>`;
     focusTarget=modalButton('FORTSÄTT SPELA','primary',closeModal);
   }else if(type==='stuck') {
     kicker.textContent='INGA MÖJLIGA DRAG';title.textContent='Använd NOVA?';

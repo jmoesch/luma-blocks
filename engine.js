@@ -1,5 +1,5 @@
 /**
- * Luma Blocks v1.3.2 — deterministic puzzle and non-destructive level progression.
+ * Luma Blocks v1.3.4 — deterministic puzzle and non-destructive level progression.
  * No dependencies on the DOM; testable using Node.js.
  */
 export const SIDE = 8;

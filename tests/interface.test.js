@@ -31,7 +31,7 @@ async function withUI(run){
   try{
     for(const [k,v] of Object.entries(overrides)){
       original.set(k,Object.getOwnPropertyDescriptor(globalThis,k));
-      Object.defineProperty(globalThis,k,{value:v,configurable:true});
+      Object.defineProperty(globalThis,k,{value:v,configurable:true,writable:true});
     }
     await run({data,id,slots,frames,timers,doc});
   }finally{
@@ -122,4 +122,27 @@ test('ny flik återställer en stängd fliks journal och tar emot nästa drag ut
   window.fire('storage',{key:SAVE_KEY});
   assert.equal(id('score').textContent,'20');
   assert.equal(id('toast').textContent,undefined);
+}));
+
+test('släpp som fyller en rad spelar rensningsljudet även efter vanlig placering',()=>withUI(async({data,id,slots,frames})=>{
+  const sounds=[];
+  globalThis.Audio=class{
+    constructor(src){this.src=src;}
+    play(){sounds.push(this.src.split('?')[0]);return Promise.resolve();}
+    pause(){}
+  };
+  const s=createState();
+  s.rack=[0,1,2].map(hue=>({shape:'dot',hue}));
+  s.board[6].fill(1);s.board[6][7]=null;
+  data.set(SAVE_KEY,JSON.stringify(s));
+  await import('../game.js?clear-sound-test');
+  id('.game-area').clientWidth=id('.game-area').clientHeight=334;
+  frames.shift()();
+  for(const [i,row,col] of [[0,0,0],[1,6,7],[2,2,2]]){
+    slots[i].fire('click',{detail:0});
+    const p={button:0,pointerId:1,pointerType:'touch',clientX:col*40+20,clientY:row*40+20};
+    id('board').fire('pointerdown',p);id('board').fire('pointerup',p);
+  }
+  assert.equal(JSON.parse(data.get(SAVE_KEY)).totalLines,1);
+  assert.deepEqual(sounds,['./assets/place.wav','./assets/clear.wav','./assets/place.wav']);
 }));

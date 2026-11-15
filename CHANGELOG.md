@@ -1,5 +1,13 @@
 # Ändringslogg
 
+## v1.3.4 (test)
+
+- Ett snabbt drag under rensningsfanfaren spelar placeringsljudet på en separat ljudkanal.
+
+## v1.3.3 (test)
+
+- Tydligare rensningsfanfar på samma ljudspelare som placeringsljudet. Nästa vanliga drag låter fanfaren klinga ut.
+
 ## v1.3.2 (test)
 
 - Kort tryck placerar vid fingret. Glidning från 7 px lyfter biten. Muspekaren visar placeringen vid hovring.
